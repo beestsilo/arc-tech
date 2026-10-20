@@ -1,0 +1,44 @@
+const fs=require('fs'),vm=require('vm');const h=fs.readFileSync(process.argv[2]||"index.html",'utf8');
+const ids=new Set([...h.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
+const scripts=[...h.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+const store={},missing=new Set();
+function el(id){if(!store[id]){const o={id,textContent:'',innerHTML:'',value:'',checked:true,hidden:false,disabled:false,dataset:{},style:{},cls:new Set(),
+ classList:{toggle(c,f){(f===undefined?!o.cls.has(c):f)?o.cls.add(c):o.cls.delete(c)},contains(c){return o.cls.has(c)},add(c){o.cls.add(c)},remove(c){o.cls.delete(c)}},
+ setAttribute(){},getAttribute(){return null},insertAdjacentHTML(){},appendChild(){},prepend(x){o.innerHTML=x.textContent+o.innerHTML},querySelector(){return null},focus(){},click(){},scrollIntoView(){},remove(){},closest(){return null},parentNode:{insertBefore(){}}};store[id]=o}return store[id]}
+const $=s=>{const m=/^#([\w-]+)$/.exec(s);if(m){if(!ids.has(m[1])&&!/^(v-|n-)/.test(m[1]))missing.add(s);return el(m[1])}missing.add('SEL:'+s);return el('x'+s)};
+const clicks=[];const sb={console,Math,JSON,Object,Array,Set,Map,Number,String,Date,RegExp,Error,parseInt,parseFloat,isNaN,Infinity,
+ window:{addEventListener(){}},document:{addEventListener(t,f){if(t==='click')clicks.push(f)},querySelector:$,getElementById:id=>store[id]||null,querySelectorAll:()=>[],documentElement:{dataset:{}},createElement:()=>el('tmp')},
+ localStorage:{getItem(){return null},setItem(){}},matchMedia:()=>({matches:false}),ResizeObserver:class{observe(){}},requestAnimationFrame(){},setInterval:()=>1,clearInterval(){},setTimeout:()=>1,clearTimeout(){},devicePixelRatio:1,alert(){},$,$$:()=>[],clicks,result:{}};
+const ctx=vm.createContext(sb);const errs=[];
+scripts.forEach((c,i)=>{c=c.replace(/const \$=s=>document\.querySelector\(s\),\$\$=s=>\[\.\.\.document\.querySelectorAll\(s\)\];/,'');try{vm.runInContext(c,ctx,{filename:'script'+i})}catch(e){errs.push('script '+i+': '+e.message)}});
+console.log('script blocks',scripts.length,'load errors',errs);
+const SQ=[['UPS','ups'],['Uninterruptible power supply','ups'],['Flipper Zero','flipper'],['router','router'],['Wi-Fi router','router'],['flash disk','flash'],['USB stick','flash'],['flash drive','flash'],['SSD','ssd'],['NVMe','nvme'],['NVMe SSD','nvme'],['GPU','gpu'],['CPU','cpu'],['RAM','ram'],['motherboard','mobo'],['power supply','psu'],['power bank','powerbank'],['surge protector','surge'],['modem','modem'],['switch','switch'],['network switch','switch'],['Ethernet','ethernet'],['Ethernet adapter','ethadapter'],['Raspberry Pi','pi'],['Arduino','arduino'],['ESP32','esp32'],['multimeter','meter'],['oscilloscope','scope'],['Linux','linux'],['BIOS','bios'],['UEFI','bios'],['USB data blocker','usbblock'],['logic analyser','logic'],['RFID reader','rfid'],['NFC reader','nfc'],['YubiKey','yubikey'],['TPM','tpm'],['JTAG debugger','jtag'],['network tap','nettap'],['power distribution unit','pdu'],['3D printer','printer3d'],['PLC','plc'],['AI accelerator','aiacc'],['server','server'],['virtual machine','vm'],['HDD','hdd'],
+['keyboard','keyboard'],['keyboard controller','kbctl'],['keyboard MCU','kbctl'],['mouse','mouse'],['cache','cache'],['dram','ram'],['sram','sramdram'],['dma','interrupt'],['polling','interrupt'],['kernel','kernel'],['pipeline','pipeline'],['von neumann','vonneumann'],['load balancer','cluster'],['cloud','cloud'],['hex','binary'],['ascii','ascii'],['virtual memory','vmem'],['fetch decode execute','instrcycle'],['alu','alu'],['logic gate','gates'],['system bus','bus'],['pcie','pcie'],['scheduler','process']];
+sb.SQ=SQ;
+const test=`;(function(){const out=[];const T=(n,ok,x)=>out.push((ok?'PASS ':'FAIL ')+n+(x?' | '+x:''));
+const click=g=>clicks.forEach(f=>f({target:{closest:s=>s==='[data-go]'?{dataset:{go:g}}:null}}));
+const qq=t=>{$('#q').oninput({target:{value:t}});return $('#lr').innerHTML};
+let f=0;SQ.forEach(([t,id])=>{const r=qq(t),top=(r.split('data-go="e:')[1]||'').split('"')[0];if(top!==id){f++;out.push('FAIL search '+t+' -> '+top+' (expected '+id+')')}});T('search queries',f===0,SQ.length+' queries, '+f+' failed');
+const r=qq('qwxzzy');T('unknown term gives useful message',/growing baseline/.test(r)&&/Try another name/.test(r));
+const r2=qq('flasj drive');T('typo gives did-you-mean',/Did you mean/.test(r2));
+$('#q').oninput({target:{value:''}});
+T('home cards: no Planned, all open',!/Planned|No entries yet/.test($('#cats').innerHTML),$('#cats').innerHTML.match(/<h3>/g).length+' categories');
+Object.keys(CATS).forEach(k=>{try{click('c:'+k);const html=$('#lr').innerHTML;T('category '+k+' '+CATS[k],cnt(k)>0&&html.includes('Practical example')&&html.includes('data-go="e:'),cnt(k)+' entries')}catch(e){T('category '+k,false,e.message)}});
+let bad=0;CAT.forEach(e=>{try{click('e:'+e.id);const m=!!M[e.id];const html=m?$('#ld').innerHTML:$('#dt').innerHTML;if(html.length<300||html.includes('undefined'))throw new Error('thin/undefined')}catch(er){bad++;out.push('FAIL open entry '+e.id+': '+er.message)}});T('every entry opens a detail view (3D engine unavailable path)',bad===0,CAT.length+' entries, '+bad+' failed');
+['home','sim','lib','quiz','sim1','sim2','sim3','sim4','sim5','ram','cpu'].forEach(n=>{try{click(n);T('nav '+n,true)}catch(e){T('nav '+n,false,e.message)}});
+try{cinit();for(let i=0;i<28;i++)cstep();T('CPU sim advance to halt (7+5=12)',s.mem[12]===12&&s.halt===1,'RAM[12]='+s.mem[12]);cstep();cinit();T('CPU sim reset',s.k===0&&s.pc===0&&s.mem[12]===0)}catch(e){T('CPU sim',false,e.message)}
+try{sr();acc(0);acc(1);acc(0);acc(4);T('cache sim hit/miss',Hh===1&&Mm===3,'hits '+Hh+' misses '+Mm)}catch(e){T('cache sim',false,e.message)}
+try{qi=0;qs=0;wr=[];qv();$('#qb').onclick({target:{closest:()=>({dataset:{i:'1'},id:''})}});T('quiz feedback',/Correct/.test($('#fb').innerHTML))}catch(e){T('quiz',false,e.message)}
+try{vreset();vtick();T('VM sim tick',vtk===1)}catch(e){T('VM sim',false,e.message)}
+try{KP=Array(16).fill(0);[0,1,4].forEach(i=>KP[i]=1);$('#kd').checked=false;const d=kdet();T('keyboard ghost key',d[5]===1&&!KP[5])}catch(e){T('keyboard sim',false,e.message)}
+try{$('#cb2').value='10';$('#cn').value='13';conv();const a=$('#co').innerHTML;T('converter 13',/1101/.test(a)&&/0xD/.test(a));$('#cb2').value='2';$('#cn').value='1021';conv();T('converter rejects bad binary',/not valid binary/.test($('#co').innerHTML));$('#cb2').value='16';$('#cn').value='ff';conv();T('converter hex ff',/255/.test($('#co').innerHTML)&&/-1 signed/.test($('#co').innerHTML))}catch(e){T('converter',false,e.message)}
+try{$('#th').onclick();T('theme switch',true)}catch(e){T('theme',false,e.message)}
+try{const al={};CAT.forEach(e=>e._a.forEach(a=>{(al[a]=al[a]||new Set()).add(e.id)}));const c=Object.entries(al).filter(([a,s])=>s.size>1);T('no alias collisions',c.length===0,c.map(x=>x[0]).join(','));const br=[];CAT.forEach(e=>{e.r.split(' ').forEach(x=>{if(!ID[x])br.push(e.id+'>'+x)});if(!CATS[e.c])br.push(e.id+' cat')});T('no broken related links or categories',br.length===0,br.join(','))}catch(e){T('integrity',false,e.message)}
+
+try{const req=['cpu','ram','gpu','mobo','ssd','hdd','psu','fan','ups','router','switch','arduino'];let bad=[];req.forEach(id=>{const m=M[id];if(!m){bad.push(id+' no model');return}const ids=new Set(m.parts.map(p=>p.id));if(ids.size!==m.parts.length)bad.push(id+' dup ids');if(!m.parts.some(p=>!p.o))bad.push(id+' no base');if(m.parts.length<5)bad.push(id+' few parts');m.parts.forEach(p=>{if(!p.n||!p.L||!p.r||!p.s||p.p==null)bad.push(id+':'+p.id+' incomplete');if(p.ring&&(!p.rr))bad.push(id+':'+p.id+' ring');if(p.cy?p.s.length!==2:p.s.length!==3)bad.push(id+':'+p.id+' size')});click(id);let x=$('#ld').innerHTML;if(!x.includes('need the 3D viewer')||x.includes('data-gx'))bad.push(id+' fallback note');mid=id;ldr(id,1);x=$('#ld').innerHTML;if(!x.includes('Guided exploration')||!x.includes('Sources')||x.includes('undefined'))bad.push(id+' page');const e=ID[id];if(!e||!e.m)bad.push(id+' entry/model link');const card=it(e);if(!card.includes('3D model')||/Planned/.test(card))bad.push(id+' card tag')});T('12 requested components: model data, page and card tag',bad.length===0,bad.join('; ')||'cpu ram gpu mobo ssd hdd psu fan ups router switch arduino');
+const pl=CAT.filter(e=>!M[e.id]&&!e.m&&!e.sim);T('Planned tag only on entries with no model or simulation',pl.every(e=>/Planned/.test(it(e)))&&CAT.filter(e=>M[e.id]||e.m||e.sim).every(e=>!/Planned/.test(it(e))),pl.length+' planned entries')}catch(e){T('12 components',false,e.message)}
+T('totals',true,CAT.length+' entries, '+Object.keys(M).length+' models, '+CAT.filter(e=>M[e.id]||e.m||e.sim).length+' with interactive experience');
+result.out=out})();`;
+try{vm.runInContext(test,ctx,{filename:'tests'})}catch(e){console.log('TEST ERROR',e.message,e.stack.split('\n').slice(0,3).join(' / '))}
+(sb.result.out||[]).forEach(x=>console.log(x));
+console.log('MISSING DOM refs:',[...missing]);
